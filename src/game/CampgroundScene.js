@@ -19,6 +19,9 @@ export default class CampgroundScene extends Scene {
     // data.agents is the array of agent objects from Supabase,
     // passed in when the scene starts.
     this.agentData = data.agents || []
+    // The ID of the agent currently being controlled with the keyboard.
+    // null means no agent is selected. Set from React via setActiveAgent().
+    this.activeAgentId = data.activeAgentId || null
   }
 
   preload() {
@@ -29,7 +32,6 @@ export default class CampgroundScene extends Scene {
     this.cameras.main.setBackgroundColor('#1a2a2a')
 
     // Draw a simple ground area so the world doesn't feel completely empty.
-    // This is a dark rectangle with a slightly lighter border.
     const ground = this.add.rectangle(400, 300, 760, 560, 0x1e3333)
     ground.setStrokeStyle(2, 0x2a4a4a)
 
@@ -37,6 +39,33 @@ export default class CampgroundScene extends Scene {
     this.agentData.forEach((agent) => {
       this.spawnAgent(agent)
     })
+
+    // Set up keyboard input for avatar movement.
+    // createCursorKeys() gives us arrow keys. We add WASD manually.
+    this.cursors = this.input.keyboard.createCursorKeys()
+    this.wasd = {
+      up: this.input.keyboard.addKey('W'),
+      down: this.input.keyboard.addKey('S'),
+      left: this.input.keyboard.addKey('A'),
+      right: this.input.keyboard.addKey('D'),
+    }
+
+    // Track the last time we saved position to Supabase so we
+    // don't write on every single frame (that would be ~60 writes
+    // per second). We throttle to roughly 4 writes per second.
+    this.lastPositionSave = 0
+    this.SAVE_INTERVAL = 250 // milliseconds
+
+    // A callback that React can set to receive position updates.
+    // This lets us save to Supabase from the React side.
+    this.onPositionChange = null
+
+    // Proximity detection: distance (in pixels) at which two agents
+    // are considered "near" each other. Used to trigger trade UI.
+    this.PROXIMITY_DISTANCE = 50
+    // Callback React can set to be notified when the avatar is
+    // near another agent (or moves away).
+    this.onProximity = null
   }
 
   spawnAgent(agent) {
@@ -103,7 +132,66 @@ export default class CampgroundScene extends Scene {
     this.agentSprites.set(agent.id, { sprite: gfx, label, data: agent })
   }
 
-  update() {
-    // Movement logic will be added in the next step.
+  update(time) {
+    if (!this.activeAgentId) return
+    const entry = this.agentSprites.get(this.activeAgentId)
+    if (!entry) return
+
+    const speed = 2 // pixels per frame
+    let dx = 0
+    let dy = 0
+
+    if (this.cursors.left.isDown || this.wasd.left.isDown) dx -= speed
+    if (this.cursors.right.isDown || this.wasd.right.isDown) dx += speed
+    if (this.cursors.up.isDown || this.wasd.up.isDown) dy -= speed
+    if (this.cursors.down.isDown || this.wasd.down.isDown) dy += speed
+
+    if (dx !== 0 || dy !== 0) {
+      // Clamp to the ground area (20px to 780px, 20px to 580px).
+      const newX = Math.max(20, Math.min(780, entry.sprite.x + dx))
+      const newY = Math.max(20, Math.min(580, entry.sprite.y + dy))
+      entry.sprite.setPosition(newX, newY)
+      entry.label.setPosition(newX, newY - 30)
+
+      // Throttled save: notify React so it can persist to Supabase.
+      if (this.onPositionChange && time - this.lastPositionSave > this.SAVE_INTERVAL) {
+        this.lastPositionSave = time
+        this.onPositionChange(this.activeAgentId, newX, newY)
+      }
+    }
+
+    // Check proximity to other agents.
+    this.checkProximity(entry)
+  }
+
+  checkProximity(activeEntry) {
+    let nearest = null
+    let nearestDist = Infinity
+
+    this.agentSprites.forEach((other, id) => {
+      if (id === this.activeAgentId) return
+      const dx = activeEntry.sprite.x - other.sprite.x
+      const dy = activeEntry.sprite.y - other.sprite.y
+      const dist = Math.sqrt(dx * dx + dy * dy)
+      if (dist < this.PROXIMITY_DISTANCE && dist < nearestDist) {
+        nearest = other.data
+        nearestDist = dist
+      }
+    })
+
+    // Only fire the callback when the nearest agent changes.
+    const nearId = nearest ? nearest.id : null
+    if (nearId !== this._lastNearAgent) {
+      this._lastNearAgent = nearId
+      if (this.onProximity) {
+        this.onProximity(nearest)
+      }
+    }
+  }
+
+  // Called from React when the user selects a different avatar.
+  setActiveAgent(agentId) {
+    this.activeAgentId = agentId
+    this._lastNearAgent = null
   }
 }

@@ -3,10 +3,15 @@ import { Game, AUTO, Scale } from 'phaser'
 import CampgroundScene from './CampgroundScene'
 
 // React component that creates and manages the Phaser game instance.
-// Accepts an "agents" prop (array of agent objects from Supabase)
-// and passes them into the Phaser scene.
+// Accepts agents, the active agent ID, and callbacks for position
+// changes and proximity events.
 
-export default function CampgroundCanvas({ agents }) {
+export default function CampgroundCanvas({
+  agents,
+  activeAgentId,
+  onPositionChange,
+  onProximity,
+}) {
   const gameContainer = useRef(null)
   const gameInstance = useRef(null)
 
@@ -35,16 +40,35 @@ export default function CampgroundCanvas({ agents }) {
   }, [])
 
   // When agents change, restart the scene with the new data.
-  // This is a simple approach for Phase 1. A more sophisticated
-  // version would add/remove individual sprites without restarting.
   useEffect(() => {
     if (!gameInstance.current) return
 
     const scene = gameInstance.current.scene.getScene('CampgroundScene')
     if (scene && scene.scene.isActive()) {
-      scene.scene.restart({ agents })
+      scene.scene.restart({ agents, activeAgentId })
     }
   }, [agents])
+
+  // When the active agent changes, tell the scene (without restarting).
+  useEffect(() => {
+    if (!gameInstance.current) return
+
+    const scene = gameInstance.current.scene.getScene('CampgroundScene')
+    if (scene && scene.setActiveAgent) {
+      scene.setActiveAgent(activeAgentId)
+    }
+  }, [activeAgentId])
+
+  // Keep the scene's callbacks in sync with React props.
+  useEffect(() => {
+    if (!gameInstance.current) return
+
+    const scene = gameInstance.current.scene.getScene('CampgroundScene')
+    if (scene) {
+      scene.onPositionChange = onPositionChange || null
+      scene.onProximity = onProximity || null
+    }
+  }, [onPositionChange, onProximity])
 
   return (
     <div

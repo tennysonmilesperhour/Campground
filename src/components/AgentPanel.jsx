@@ -1,12 +1,18 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 
-// Panel for creating agents and viewing the list of your agents.
-// Receives the agent list from App (which also passes it to the canvas)
-// and calls onAgentCreated when a new agent is added so both the
-// panel and canvas stay in sync.
+// Panel for creating agents, viewing the agent list, and selecting
+// which agent to control as an avatar. Click an agent to walk it
+// around the campground with WASD or arrow keys.
 
-export default function AgentPanel({ session, agents, onAgentCreated }) {
+export default function AgentPanel({
+  session,
+  agents,
+  activeAgentId,
+  nearAgent,
+  onSelectAgent,
+  onAgentCreated,
+}) {
   const [name, setName] = useState('')
   const [currentProject, setCurrentProject] = useState('')
   const [creating, setCreating] = useState(false)
@@ -51,18 +57,43 @@ export default function AgentPanel({ session, agents, onAgentCreated }) {
         <p className="text-sm text-gray-600">No agents yet. Create one below.</p>
       ) : (
         <ul className="space-y-2">
-          {agents.map((agent) => (
-            <li
-              key={agent.id}
-              className="p-2 bg-gray-800 rounded border border-gray-700"
-            >
-              <p className="text-sm text-amber-200 font-medium">{agent.name}</p>
-              {agent.current_project && (
-                <p className="text-xs text-gray-500 mt-1">{agent.current_project}</p>
-              )}
-            </li>
-          ))}
+          {agents.map((agent) => {
+            const isActive = agent.id === activeAgentId
+            return (
+              <li
+                key={agent.id}
+                onClick={() => onSelectAgent(isActive ? null : agent.id)}
+                className={`p-2 rounded border cursor-pointer transition-colors ${
+                  isActive
+                    ? 'bg-amber-900/30 border-amber-600'
+                    : 'bg-gray-800 border-gray-700 hover:border-gray-600'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-amber-200 font-medium">{agent.name}</p>
+                  {isActive && (
+                    <span className="text-[10px] text-amber-400 uppercase tracking-wider">
+                      Walking
+                    </span>
+                  )}
+                </div>
+                {agent.current_project && (
+                  <p className="text-xs text-gray-500 mt-1">{agent.current_project}</p>
+                )}
+              </li>
+            )
+          })}
         </ul>
+      )}
+
+      {/* Proximity indicator: shows when your avatar is near another agent */}
+      {nearAgent && (
+        <div className="p-2 bg-teal-900/30 border border-teal-700 rounded">
+          <p className="text-xs text-teal-300">
+            Near <span className="font-medium">{nearAgent.name}</span>
+          </p>
+          <p className="text-[10px] text-teal-500 mt-1">Trade available (coming soon)</p>
+        </div>
       )}
 
       <form onSubmit={handleCreate} className="space-y-2 border-t border-gray-800 pt-4">
