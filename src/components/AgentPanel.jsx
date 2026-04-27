@@ -13,6 +13,7 @@ export default function AgentPanel({
   nearAgent,
   onSelectAgent,
   onAgentCreated,
+  onOpenTrade,
 }) {
   const [name, setName] = useState('')
   const [currentProject, setCurrentProject] = useState('')
@@ -95,13 +96,18 @@ export default function AgentPanel({
         />
       )}
 
-      {/* Proximity indicator: shows when your avatar is near another agent */}
+      {/* Proximity indicator with trade button */}
       {nearAgent && (
         <div className="p-2 bg-teal-900/30 border border-teal-700 rounded">
           <p className="text-xs text-teal-300">
             Near <span className="font-medium">{nearAgent.name}</span>
           </p>
-          <p className="text-[10px] text-teal-500 mt-1">Trade available (coming soon)</p>
+          <button
+            onClick={onOpenTrade}
+            className="mt-1.5 w-full py-1 bg-teal-700 hover:bg-teal-600 text-teal-100 rounded text-xs font-medium"
+          >
+            Trade
+          </button>
         </div>
       )}
 

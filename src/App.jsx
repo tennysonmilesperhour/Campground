@@ -3,6 +3,7 @@ import { supabase } from './lib/supabase'
 import Auth from './components/Auth'
 import AgentPanel from './components/AgentPanel'
 import CampgroundCanvas from './game/CampgroundCanvas'
+import TradeDialog from './components/TradeDialog'
 
 function App() {
   const [session, setSession] = useState(null)
@@ -12,6 +13,8 @@ function App() {
   const [activeAgentId, setActiveAgentId] = useState(null)
   // Which agent (if any) the avatar is currently near.
   const [nearAgent, setNearAgent] = useState(null)
+  // Whether the trade dialog is open.
+  const [tradeOpen, setTradeOpen] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -62,6 +65,8 @@ function App() {
     setNearAgent(agent)
   }, [])
 
+  const activeAgent = agents.find((a) => a.id === activeAgentId)
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -101,8 +106,19 @@ function App() {
           nearAgent={nearAgent}
           onSelectAgent={setActiveAgentId}
           onAgentCreated={loadAgents}
+          onOpenTrade={() => setTradeOpen(true)}
         />
       </div>
+
+      {tradeOpen && activeAgent && nearAgent && (
+        <TradeDialog
+          session={session}
+          avatarAgent={activeAgent}
+          targetAgent={nearAgent}
+          onClose={() => setTradeOpen(false)}
+          onTradeComplete={loadAgents}
+        />
+      )}
     </div>
   )
 }
