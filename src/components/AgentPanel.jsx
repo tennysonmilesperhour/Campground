@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
+import InventoryPanel from './InventoryPanel'
 
 // Panel for creating agents, viewing the agent list, and selecting
 // which agent to control as an avatar. Click an agent to walk it
@@ -84,6 +85,14 @@ export default function AgentPanel({
             )
           })}
         </ul>
+      )}
+
+      {/* Show inventory for the selected agent */}
+      {activeAgentId && (
+        <InventoryPanel
+          agent={agents.find((a) => a.id === activeAgentId)}
+          session={session}
+        />
       )}
 
       {/* Proximity indicator: shows when your avatar is near another agent */}
