@@ -2,34 +2,30 @@ import { useEffect, useRef } from 'react'
 import { Game, AUTO, Scale } from 'phaser'
 import CampgroundScene from './CampgroundScene'
 
-// This React component creates and manages the Phaser game instance.
-// useRef gives us a reference to the DOM element where Phaser will render.
-// useEffect runs setup code after the component mounts, and cleanup when
-// it unmounts (the return function).
+// React component that creates and manages the Phaser game instance.
+// Accepts an "agents" prop (array of agent objects from Supabase)
+// and passes them into the Phaser scene.
 
-export default function CampgroundCanvas() {
+export default function CampgroundCanvas({ agents }) {
   const gameContainer = useRef(null)
   const gameInstance = useRef(null)
 
   useEffect(() => {
-    // Only create the game once, and only if the container div exists.
     if (gameInstance.current || !gameContainer.current) return
 
     gameInstance.current = new Game({
-      type: AUTO,              // Let Phaser pick WebGL or Canvas
-      parent: gameContainer.current,  // Mount inside our div
+      type: AUTO,
+      parent: gameContainer.current,
       width: 800,
       height: 600,
       backgroundColor: '#1a2a2a',
       scene: [CampgroundScene],
       scale: {
-        mode: Scale.FIT,              // Scale to fit the container
+        mode: Scale.FIT,
         autoCenter: Scale.CENTER_BOTH,
       },
     })
 
-    // Cleanup: destroy the Phaser game when this component is removed
-    // from the page. This prevents memory leaks.
     return () => {
       if (gameInstance.current) {
         gameInstance.current.destroy(true)
@@ -37,6 +33,18 @@ export default function CampgroundCanvas() {
       }
     }
   }, [])
+
+  // When agents change, restart the scene with the new data.
+  // This is a simple approach for Phase 1. A more sophisticated
+  // version would add/remove individual sprites without restarting.
+  useEffect(() => {
+    if (!gameInstance.current) return
+
+    const scene = gameInstance.current.scene.getScene('CampgroundScene')
+    if (scene && scene.scene.isActive()) {
+      scene.scene.restart({ agents })
+    }
+  }, [agents])
 
   return (
     <div

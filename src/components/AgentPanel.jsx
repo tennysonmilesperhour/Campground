@@ -2,32 +2,15 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
 // Panel for creating agents and viewing the list of your agents.
-// Each agent represents one of your real projects.
+// Receives the agent list from App (which also passes it to the canvas)
+// and calls onAgentCreated when a new agent is added so both the
+// panel and canvas stay in sync.
 
-export default function AgentPanel({ session }) {
-  const [agents, setAgents] = useState([])
+export default function AgentPanel({ session, agents, onAgentCreated }) {
   const [name, setName] = useState('')
   const [currentProject, setCurrentProject] = useState('')
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState(null)
-
-  // Load agents from Supabase when the component mounts.
-  useEffect(() => {
-    loadAgents()
-  }, [])
-
-  async function loadAgents() {
-    const { data, error } = await supabase
-      .from('agents')
-      .select('*')
-      .order('created_at', { ascending: true })
-
-    if (error) {
-      console.error('Failed to load agents:', error)
-    } else {
-      setAgents(data)
-    }
-  }
 
   async function handleCreate(e) {
     e.preventDefault()
@@ -36,8 +19,6 @@ export default function AgentPanel({ session }) {
     setCreating(true)
     setError(null)
 
-    // Randomize starting position a bit so agents don't stack on top
-    // of each other. 200-600 range keeps them in the visible area.
     const position_x = 200 + Math.random() * 400
     const position_y = 150 + Math.random() * 300
 
@@ -54,7 +35,7 @@ export default function AgentPanel({ session }) {
     } else {
       setName('')
       setCurrentProject('')
-      await loadAgents()
+      onAgentCreated()
     }
 
     setCreating(false)
@@ -66,7 +47,6 @@ export default function AgentPanel({ session }) {
         Your Agents
       </h2>
 
-      {/* Agent list */}
       {agents.length === 0 ? (
         <p className="text-sm text-gray-600">No agents yet. Create one below.</p>
       ) : (
@@ -85,7 +65,6 @@ export default function AgentPanel({ session }) {
         </ul>
       )}
 
-      {/* Create agent form */}
       <form onSubmit={handleCreate} className="space-y-2 border-t border-gray-800 pt-4">
         <h3 className="text-xs font-semibold text-gray-500 uppercase">New Agent</h3>
         <input

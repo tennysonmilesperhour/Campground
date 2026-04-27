@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { supabase } from './lib/supabase'
 import Auth from './components/Auth'
 import AgentPanel from './components/AgentPanel'
@@ -7,6 +7,7 @@ import CampgroundCanvas from './game/CampgroundCanvas'
 function App() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [agents, setAgents] = useState([])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -22,6 +23,26 @@ function App() {
 
     return () => subscription.unsubscribe()
   }, [])
+
+  // Load agents when we have a session.
+  const loadAgents = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('agents')
+      .select('*')
+      .order('created_at', { ascending: true })
+
+    if (error) {
+      console.error('Failed to load agents:', error)
+    } else {
+      setAgents(data)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (session) {
+      loadAgents()
+    }
+  }, [session, loadAgents])
 
   if (loading) {
     return (
@@ -48,9 +69,9 @@ function App() {
       </header>
       <div className="flex flex-1 min-h-0">
         <main className="flex-1 flex items-center justify-center p-4">
-          <CampgroundCanvas />
+          <CampgroundCanvas agents={agents} />
         </main>
-        <AgentPanel session={session} />
+        <AgentPanel session={session} agents={agents} onAgentCreated={loadAgents} />
       </div>
     </div>
   )
