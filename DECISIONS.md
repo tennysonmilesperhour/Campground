@@ -43,3 +43,8 @@ Preserve React, Vite, Phaser, Supabase, and Vercel. Replace the disconnected pro
 Use namespaced `camp_*` tables so deployment can coexist with other applications if the owner selects a shared backend. Keep privileged implementations in a private schema, grant no direct client writes, and enforce ownership, quotas, and input limits inside each function. Preserve the old schema as a historical reference and leave legacy rows untouched until they can be inspected.
 
 Use a dedicated local development checkout because the generated Documents workspace was offloading dependency files through the filesystem provider and blocking reads. Keep local test fixtures out of production. Production completion requires the paused backend to be restored or a different hosted project explicitly selected.
+
+
+## 2026-09-07: Shared Vibe Check backend
+
+The owner explicitly chose the active Vibe Check project for Campground, Dialogue, and AI Catch Up. Use app-specific tables and shared Supabase Auth for Campground and Vibe Check. Preserve existing Vibe Check records and retain shared identities when deleting Vibe Check data. Paused source databases remain intact pending recovery; their historical data is not included in the completed connection switch. See SHARED_BACKEND.md.

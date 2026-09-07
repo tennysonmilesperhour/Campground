@@ -14,7 +14,7 @@ React 19 and Vite 8 serve the application shell. Phaser is lazy-loaded for the w
 
 The browser receives only the public Supabase key. Client roles have no direct mutation grants. Public security-invoker RPC wrappers call narrowly scoped functions in `camp_private`; each privileged function has a fixed empty search path and checks `auth.uid()` against the relevant owner. Database constraints and row locks enforce quotas, ownership, valid positions, and one active copy per pack. Collection and its receipt commit together or roll back together.
 
-No existing application tables, auth triggers, or auth settings are changed by the migration. The earlier Phase 1 schema is preserved under `supabase/legacy` and legacy data remains untouched pending inspection.
+The Campground migration preserves existing application tables. The shared integration adds a Vibe Check deletion guard and allows callbacks to both apps. The earlier Phase 1 schema is preserved under `supabase/legacy` and legacy data remains untouched pending inspection.
 
 ## World lifecycle
 
@@ -24,4 +24,4 @@ Realtime position updates patch the agent collection directly. Resource changes 
 
 ## Verification and deployment boundary
 
-Database tests execute the real migration in PostgreSQL through PGlite. A loopback-only Auth/REST test adapter drives browser flows without production data. It does not test hosted email delivery or Realtime transport. Those require a connected Supabase project and two independent browser sessions before production acceptance.
+Database tests execute the real migration in PostgreSQL through PGlite. A loopback-only Auth/REST test adapter drives browser flows without production data. It does not test hosted email delivery or Realtime transport. Hosted checks additionally verified two authenticated clients, private/public isolation, atomic copying, Realtime, and shared-account deletion on the active Vibe Check project. Browser verification covered hosted login and field-guide collection. Custom SMTP is still needed for public signup and recovery.

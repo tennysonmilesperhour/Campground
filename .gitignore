@@ -8,3 +8,6 @@ dist
 work/
 .vercel/
 .vercel
+
+# Supabase CLI local metadata
+supabase/.temp/

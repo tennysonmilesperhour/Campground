@@ -261,7 +261,7 @@ export default function App() {
     notify(`“${skill.title}” is in your pack.`);
   }
   async function signOut() {
-    const { error } = await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut({ scope: "local" });
     if (error) {
       notify(error.message);
       return;

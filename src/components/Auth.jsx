@@ -61,6 +61,12 @@ export default function Auth({ onClose, recovery = false }) {
             : "Settle back in with a new password."}
       </p>
       {!recovery && (
+        <p className="fine-print">
+          Already use Vibe Check? Sign in with the same email and password.
+          Your private journal stays private.
+        </p>
+      )}
+      {!recovery && (
         <div className="segmented">
           <button
             aria-pressed={mode === "signup"}

@@ -4,6 +4,10 @@ Campground is a React/Vite app with a Phaser world and Supabase persistence. Peo
 
 The September 2026 rebuild expands the original single-user prototype into a shared campground. It implements public exploration, accounts, project agents, movement, private/public packs, credited atomic copying, realtime updates, and reporting. See README.md for runtime setup and verification, PRODUCT.md and DESIGN.md for design context, and INTENT.md and IDENTITY.md for the original vision.
 
-The original Supabase project is `nexoqtrftixmtuayxiws`, named “Mythic Labs' AI Catch Up | Campground”. It was paused when inspected. Restoration was refused because the account had reached its active free-project limit. The Vercel project `campground` had no Supabase environment variables. A hosted backend must be selected or restored before production acceptance. Do not use another application's tables or change shared auth configuration without a confirmed destination and scope.
+The shared backend is the active Vibe Check Supabase project, `xyhbuqsxglfjbounogdz`, explicitly selected by the owner on September 7, 2026. Campground uses `camp_*`, Dialogue uses `dialogue_waitlist`, and AI Catch Up uses `aicu_subscribers`. Existing Vibe Check tables stay in place. Vercel environments use public keys.
+
+Original Campground project `nexoqtrftixmtuayxiws` and Dialogue project `ptwxbkzulstocpfhufea` remain paused. Queries time out and their Management API backup lists are empty. The dashboard offers backups, but Chrome blocked the attempted export. No historical rows or identities have been imported and neither project has been deleted.
+
+Auth is shared with Vibe Check. Callback URLs cover both apps; Vibe Check deletion preserves identities that own Campground data. Email verification remains enabled. Custom SMTP is still needed for public registration and password recovery. Existing confirmed accounts work. See SHARED_BACKEND.md.
 
 Current tables are namespaced `camp_*`; the original Phase 1 schema is archived under `supabase/legacy/` and its data is not automatically modified. The local browser fixture is test-only and must never be used as a deployment backend.

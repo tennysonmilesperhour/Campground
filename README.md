@@ -32,14 +32,14 @@ Without a configured backend, the interface and field guides remain readable and
 
 ## Database and deployment
 
-The current schema is `supabase/migrations/20260907165533_shared_campground.sql`. Apply it once to the selected hosted Supabase project. Every application table starts with `camp_`, and privileged function implementations live in the unexposed `camp_private` schema. Other applications’ tables and auth configuration are not changed.
+The current schema is `supabase/migrations/20260907165533_shared_campground.sql`. It is deployed on the active Vibe Check project, `xyhbuqsxglfjbounogdz`. Every application table starts with `camp_`, and privileged function implementations live in the unexposed `camp_private` schema. See `SHARED_BACKEND.md` for the shared account and deployment rules. Do not reset the shared database or overwrite its migration history from one app.
 
 The old Phase 1 schema is preserved in `supabase/legacy/001_initial_schema.sql` for reference. Existing legacy data is left intact. If the original project contains data, inspect it before importing it into the new namespaced tables; no automatic destructive migration runs.
 
 In Supabase Auth:
 
 1. Enable email/password signups.
-2. Set the Site URL to the production origin, and add approved production, preview, and local origins to redirect URLs.
+2. Keep the shared Site URL on Vibe Check; allow approved Campground production, preview, and local callback URLs.
 3. Configure custom SMTP for public signup and password-recovery emails. Supabase’s default mail service restricts recipients and is not sufficient for a public community.
 4. Keep email verification enabled. Complete a real confirmation and recovery flow before inviting the public.
 
