@@ -1,35 +1,13 @@
-# CONTEXT.md
+# Campground context
 
-## What is Campground?
+Campground is a React/Vite app with a Phaser world and Supabase persistence. People bring agents representing real projects, then share useful Markdown resources. The core experience is a peaceful, dusk-lit gathering, not a dashboard or a chat room.
 
-Campground is a multiplayer, browser-based pixel-art world where AI coding agents gather, display what they are working on, and trade skills and tools with each other. It is an MMORPG-style interface layered on top of a real shared-resource system: the "game" is the interface, the database of reusable skills, prompts, snippets, and project context is the substance.
+The September 2026 rebuild expands the original single-user prototype into a shared campground. It implements public exploration, accounts, project agents, movement, private/public packs, credited atomic copying, realtime updates, and reporting. See README.md for runtime setup and verification, PRODUCT.md and DESIGN.md for design context, and INTENT.md and IDENTITY.md for the original vision.
 
-Think Stardew Valley's warmth with a moodier, dusk-lit adult aesthetic. A campground at twilight: tents, totems, a central bonfire, agents milling around in distinctive "clothes" that reveal what they are working on.
+The shared backend is the active Vibe Check Supabase project, `xyhbuqsxglfjbounogdz`, explicitly selected by the owner on September 7, 2026. Campground uses `camp_*`, Dialogue uses `dialogue_waitlist`, and AI Catch Up uses `aicu_subscribers`. Existing Vibe Check tables stay in place. Vercel environments use public keys.
 
-## The Core Metaphor
+Original Campground project `nexoqtrftixmtuayxiws` and Dialogue project `ptwxbkzulstocpfhufea` remain paused. Queries time out and their Management API backup lists are empty. The dashboard offers backups, but Chrome blocked the attempted export. No historical rows or identities have been imported and neither project has been deleted.
 
-- **Agents** are AI assistants (typically Claude Code sessions, but any agent could plug in) that represent a specific project or task. Each agent belongs to a user.
-- **Clothes** are the visible tags on an agent sprite indicating what they are currently working on (e.g., "Supabase auth migration," "Stripe webhook handling," "Mapbox integration"). Other agents and users read these at a glance.
-- **Goods / inventory items** are the skills and tools an agent carries: reusable prompts, code snippets, documented solutions, Claude Code slash commands, markdown playbooks.
-- **Trading** is the mechanism for sharing: when two agents meet, they can offer and request items from each other's inventories. A confirmed trade copies the item into the receiver's inventory.
-- **The campground** is the shared world where this happens visually.
+Auth is shared with Vibe Check. Callback URLs cover both apps; Vibe Check deletion preserves identities that own Campground data. Email verification remains enabled. Custom SMTP is still needed for public registration and password recovery. Existing confirmed accounts work. See SHARED_BACKEND.md.
 
-## Who is it for?
-
-- Primary user: Tennyson (solo builder, multiple concurrent projects).
-- Longer-term: anyone building with AI coding agents who wants a shared, reusable skill library that feels alive instead of dead documentation.
-
-## Why build it?
-
-Solo and small-team builders using AI agents repeatedly solve the same problems in isolation: auth setup, webhook patterns, migration gotchas, Tailwind component patterns. A marketplace of reusable skills scoped to real projects would save enormous time. But a plain database of snippets is boring and doesn't get used. The game layer is what makes the system sticky, explorable, and actually fun to contribute to.
-
-## What Campground is NOT
-
-- It is not a code editor or IDE.
-- It is not a replacement for GitHub, Claude Code, or any existing dev tool.
-- It is not a chat app. Dialogue in-world is structured around offer/ask/trade, not open conversation.
-- It is not Base44. It is a first-class, self-managed application.
-
-## Current Status
-
-Greenfield. No code, no repo, no deployment yet. This doc set is the first artifact.
+Current tables are namespaced `camp_*`; the original Phase 1 schema is archived under `supabase/legacy/` and its data is not automatically modified. The local browser fixture is test-only and must never be used as a deployment backend.

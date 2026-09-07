@@ -3,3 +3,11 @@ dist
 .env
 .env.local
 .DS_Store
+
+.env.*.local
+work/
+.vercel/
+.vercel
+
+# Supabase CLI local metadata
+supabase/.temp/

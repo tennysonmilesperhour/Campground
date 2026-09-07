@@ -1,0 +1,9 @@
+work
+.env*
+.git
+node_modules
+dist
+tests
+supabase
+.github
+.impeccable

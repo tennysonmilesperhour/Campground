@@ -1,107 +1,173 @@
-import { useState } from 'react'
-import { supabase } from '../lib/supabase'
-
-// A simple login/signup form. Supabase handles the actual
-// authentication (password hashing, session tokens, etc).
-// We just collect email + password and call supabase.auth.signUp
-// or supabase.auth.signInWithPassword.
-
-export default function Auth() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [isSignUp, setIsSignUp] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
-  const [message, setMessage] = useState(null)
-
-  async function handleSubmit(e) {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
-    setMessage(null)
-
-    if (isSignUp) {
-      const { error } = await supabase.auth.signUp({ email, password })
-      if (error) {
-        setError(error.message)
-      } else {
-        setMessage('Check your email to confirm your account.')
-      }
-    } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) {
-        setError(error.message)
-      }
-      // On success, the auth state listener in App.jsx picks up
-      // the session and shows the campground.
+import { useState } from "react";
+import { supabase } from "../lib/supabase";
+import Icon from "./Icon";
+export default function Auth({ onClose, recovery = false }) {
+  const [mode, setMode] = useState(recovery ? "recover" : "signup");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  async function submit(e) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    setMessage("");
+    const f = new FormData(e.currentTarget);
+    try {
+      if (!supabase)
+        throw new Error(
+          "The camp connection is not configured yet. Please try again later.",
+        );
+      const email = f.get("email")?.trim(),
+        password = f.get("password");
+      let result;
+      if (mode === "signin")
+        result = await supabase.auth.signInWithPassword({ email, password });
+      else if (mode === "signup")
+        result = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: window.location.origin,
+            data: { display_name: f.get("name")?.trim() },
+          },
+        });
+      else if (mode === "recover")
+        result = await supabase.auth.updateUser({ password });
+      else
+        result = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/?recovery=1`,
+        });
+      if (result.error) throw result.error;
+      if (mode === "recover" || result.data?.session) onClose();
+      else
+        setMessage(
+          mode === "signup"
+            ? "Check your email to confirm your account, then return to the camp."
+            : "If this address has an account, a reset link is on its way.",
+        );
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
     }
-
-    setLoading(false)
   }
-
   return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
-        <h1 className="text-3xl text-amber-200 font-semibold text-center mb-8">
-          Campground
-        </h1>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-200 focus:outline-none focus:border-amber-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-200 focus:outline-none focus:border-amber-500"
-            />
-          </div>
-
-          {error && (
-            <p className="text-red-400 text-sm">{error}</p>
-          )}
-
-          {message && (
-            <p className="text-green-400 text-sm">{message}</p>
-          )}
-
+    <>
+      <p className="dialog-intro">
+        {mode === "signup"
+          ? "Bring your projects and the things you’ve learned. Your place at the camp is free."
+          : mode === "signin"
+            ? "Your agents and their collections are waiting for you."
+            : "Settle back in with a new password."}
+      </p>
+      {!recovery && (
+        <p className="fine-print">
+          Already use Vibe Check? Sign in with the same email and password.
+          Your private journal stays private.
+        </p>
+      )}
+      {!recovery && (
+        <div className="segmented">
           <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2 bg-amber-700 hover:bg-amber-600 text-amber-100 rounded font-medium disabled:opacity-50"
+            aria-pressed={mode === "signup"}
+            onClick={() => {
+              setMode("signup");
+              setError("");
+              setMessage("");
+            }}
           >
-            {loading ? 'Working...' : isSignUp ? 'Sign Up' : 'Log In'}
+            Join the camp
           </button>
-        </form>
-
-        <p className="text-center text-sm text-gray-500 mt-4">
-          {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
+          <button
+            aria-pressed={mode === "signin"}
+            onClick={() => {
+              setMode("signin");
+              setError("");
+              setMessage("");
+            }}
+          >
+            Sign in
+          </button>
+        </div>
+      )}
+      <form onSubmit={submit} className="form">
+        {mode === "signup" && (
+          <label>
+            Your name
+            <input
+              name="name"
+              autoComplete="nickname"
+              maxLength={60}
+              placeholder="What should we call you?"
+              required
+            />
+          </label>
+        )}
+        {mode !== "recover" && (
+          <label>
+            Email
+            <input
+              name="email"
+              type="email"
+              autoComplete="email"
+              placeholder="you@example.com"
+              required
+            />
+          </label>
+        )}
+        {mode !== "forgot" && (
+          <label>
+            Password
+            <input
+              name="password"
+              type="password"
+              autoComplete={
+                mode === "signin" ? "current-password" : "new-password"
+              }
+              minLength={8}
+              required
+            />
+            <small>At least 8 characters.</small>
+          </label>
+        )}
+        {mode === "signup" && (
+          <p className="fine-print">
+            Be generous. Credit your sources. Share only what you have
+            permission to share.
+          </p>
+        )}
+        {error && (
+          <p role="alert" className="error">
+            {error}
+          </p>
+        )}
+        {message && (
+          <p role="status" className="notice">
+            {message}
+          </p>
+        )}
+        <button className="button primary" disabled={busy}>
+          {busy
+            ? "Connecting…"
+            : mode === "signup"
+              ? "Create your account"
+              : mode === "signin"
+                ? "Return to camp"
+                : mode === "recover"
+                  ? "Save password"
+                  : "Send reset link"}
+          <Icon name="arrow" />
+        </button>
+        {mode === "signin" && (
           <button
             type="button"
-            onClick={() => {
-              setIsSignUp(!isSignUp)
-              setError(null)
-              setMessage(null)
-            }}
-            className="text-amber-400 hover:text-amber-300 underline"
+            className="text-button"
+            onClick={() => setMode("forgot")}
           >
-            {isSignUp ? 'Log in' : 'Sign up'}
+            Forgot your password?
           </button>
-        </p>
-      </div>
-    </div>
-  )
+        )}
+      </form>
+    </>
+  );
 }
