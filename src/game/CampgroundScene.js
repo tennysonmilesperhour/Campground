@@ -1,197 +1,278 @@
-import { Scene } from 'phaser'
-
-// The main Phaser scene where agents appear as sprites on the map.
-//
-// Phaser Scene lifecycle:
-//   init(data)  - receives data passed when the scene starts
-//   preload()   - load images and assets
-//   create()    - set up the scene (runs once after preload)
-//   update()    - runs every frame (~60 times per second)
-
+import { Scene } from "phaser";
+import { colors } from "../lib/library";
 export default class CampgroundScene extends Scene {
   constructor() {
-    super('CampgroundScene')
-    // Store references to agent sprites so we can update them later.
-    this.agentSprites = new Map()
+    super("CampgroundScene");
+    this.entries = new Map();
+    this.lastSave = 0;
+    this.target = null;
+    this.nearId = null;
   }
-
-  init(data) {
-    // data.agents is the array of agent objects from Supabase,
-    // passed in when the scene starts.
-    this.agentData = data.agents || []
-    // The ID of the agent currently being controlled with the keyboard.
-    // null means no agent is selected. Set from React via setActiveAgent().
-    this.activeAgentId = data.activeAgentId || null
-  }
-
   preload() {
-    // No image assets yet. We will use simple colored rectangles.
+    this.load.image("clearing", "/art/campground.png");
   }
-
   create() {
-    this.cameras.main.setBackgroundColor('#1a2a2a')
-
-    // Draw a simple ground area so the world doesn't feel completely empty.
-    const ground = this.add.rectangle(400, 300, 760, 560, 0x1e3333)
-    ground.setStrokeStyle(2, 0x2a4a4a)
-
-    // Spawn a sprite for each agent from the database.
-    this.agentData.forEach((agent) => {
-      this.spawnAgent(agent)
-    })
-
-    // Set up keyboard input for avatar movement.
-    // createCursorKeys() gives us arrow keys. We add WASD manually.
-    this.cursors = this.input.keyboard.createCursorKeys()
-    this.wasd = {
-      up: this.input.keyboard.addKey('W'),
-      down: this.input.keyboard.addKey('S'),
-      left: this.input.keyboard.addKey('A'),
-      right: this.input.keyboard.addKey('D'),
-    }
-
-    // Track the last time we saved position to Supabase so we
-    // don't write on every single frame (that would be ~60 writes
-    // per second). We throttle to roughly 4 writes per second.
-    this.lastPositionSave = 0
-    this.SAVE_INTERVAL = 250 // milliseconds
-
-    // A callback that React can set to receive position updates.
-    // This lets us save to Supabase from the React side.
-    this.onPositionChange = null
-
-    // Proximity detection: distance (in pixels) at which two agents
-    // are considered "near" each other. Used to trigger trade UI.
-    this.PROXIMITY_DISTANCE = 50
-    // Callback React can set to be notified when the avatar is
-    // near another agent (or moves away).
-    this.onProximity = null
-  }
-
-  spawnAgent(agent) {
-    // Draw a small humanoid figure using Phaser's Graphics API.
-    // Graphics lets us draw shapes (circles, rectangles, lines)
-    // onto a single drawable object that moves as one unit.
-    //
-    // The figure is drawn relative to (0,0) and then positioned
-    // at the agent's coordinates. This makes movement simpler later
-    // because we just update the container's x/y.
-
-    // Pick a body color based on sprite_variant (cycles through a
-    // small palette so agents look distinct from each other).
-    // Each entry is [main color, darker shade] so we don't need
-    // Phaser's color utilities at runtime.
-    const palette = [
-      [0xd4a574, 0x9a7352], // amber
-      [0x7ab8a8, 0x558576], // teal
-      [0xc87e6a, 0x8f5a4b], // clay
-      [0x8a9dc7, 0x61708f], // slate blue
-      [0xb8a9d4, 0x847996], // lavender
-    ]
-    const [color, dark] = palette[agent.sprite_variant % palette.length]
-
-    const gfx = this.add.graphics()
-
-    // Head (circle, 7px radius)
-    gfx.fillStyle(color, 1)
-    gfx.fillCircle(0, -16, 7)
-    gfx.lineStyle(1, dark, 1)
-    gfx.strokeCircle(0, -16, 7)
-
-    // Body (tapered rectangle, wider at shoulders)
-    gfx.fillStyle(dark, 1)
-    gfx.fillRect(-6, -9, 12, 14)
-
-    // Arms (two small rectangles on either side of the body)
-    gfx.fillStyle(color, 1)
-    gfx.fillRect(-9, -8, 3, 10)
-    gfx.fillRect(6, -8, 3, 10)
-
-    // Legs (two small rectangles below the body)
-    gfx.fillStyle(color, 1)
-    gfx.fillRect(-5, 5, 4, 8)
-    gfx.fillRect(1, 5, 4, 8)
-
-    // Feet (slightly wider than legs)
-    gfx.fillStyle(dark, 1)
-    gfx.fillRect(-6, 12, 5, 3)
-    gfx.fillRect(1, 12, 5, 3)
-
-    // Position the whole graphic at the agent's map coordinates.
-    gfx.setPosition(agent.position_x, agent.position_y)
-
-    // Name label above the head.
-    const label = this.add.text(
-      agent.position_x,
-      agent.position_y - 30,
-      agent.name,
-      { fontSize: '11px', color: '#c8b89a', align: 'center' }
-    )
-    label.setOrigin(0.5)
-
-    this.agentSprites.set(agent.id, { sprite: gfx, label, data: agent })
-  }
-
-  update(time) {
-    if (!this.activeAgentId) return
-    const entry = this.agentSprites.get(this.activeAgentId)
-    if (!entry) return
-
-    const speed = 2 // pixels per frame
-    let dx = 0
-    let dy = 0
-
-    if (this.cursors.left.isDown || this.wasd.left.isDown) dx -= speed
-    if (this.cursors.right.isDown || this.wasd.right.isDown) dx += speed
-    if (this.cursors.up.isDown || this.wasd.up.isDown) dy -= speed
-    if (this.cursors.down.isDown || this.wasd.down.isDown) dy += speed
-
-    if (dx !== 0 || dy !== 0) {
-      // Clamp to the ground area (20px to 780px, 20px to 580px).
-      const newX = Math.max(20, Math.min(780, entry.sprite.x + dx))
-      const newY = Math.max(20, Math.min(580, entry.sprite.y + dy))
-      entry.sprite.setPosition(newX, newY)
-      entry.label.setPosition(newX, newY - 30)
-
-      // Throttled save: notify React so it can persist to Supabase.
-      if (this.onPositionChange && time - this.lastPositionSave > this.SAVE_INTERVAL) {
-        this.lastPositionSave = time
-        this.onPositionChange(this.activeAgentId, newX, newY)
+    this.add.image(0, 0, "clearing").setOrigin(0).setDisplaySize(900, 600);
+    this.ring = this.add
+      .ellipse(0, 0, 28, 12)
+      .setStrokeStyle(1.5, 0xe7c18c)
+      .setVisible(false);
+    this.marker = this.add
+      .ellipse(0, 0, 12, 5)
+      .setStrokeStyle(1, 0xe7c18c)
+      .setVisible(false);
+    this.input.on("pointerdown", (pointer) => {
+      this.game.canvas.focus({ preventScroll: true });
+      if (!this.props?.activeAgentId || this.props?.paused) return;
+      const hit = [...this.entries.values()].find(
+        (e) => Math.hypot(pointer.x - e.x, pointer.y - (e.y - 12)) < 22,
+      );
+      if (hit && hit.data.id !== this.props.activeAgentId) {
+        this.props.onInspect(hit.data);
+        return;
+      }
+      this.target = {
+        x: Math.max(170, Math.min(710, pointer.x)),
+        y: Math.max(175, Math.min(490, pointer.y)),
+      };
+      this.marker.setPosition(this.target.x, this.target.y).setVisible(true);
+    });
+    this.keys = new Set();
+    this.onKeyDown = (event) => {
+      if (
+        !this.props?.activeAgentId ||
+        this.props?.paused ||
+        /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName) ||
+        document.activeElement?.isContentEditable
+      )
+        return;
+      const key = event.key.toLowerCase();
+      if (
+        [
+          "arrowup",
+          "arrowdown",
+          "arrowleft",
+          "arrowright",
+          "w",
+          "a",
+          "s",
+          "d",
+        ].includes(key)
+      ) {
+        event.preventDefault();
+        this.keys.add(key);
+        this.target = null;
+      }
+    };
+    this.onKeyUp = (e) => this.keys.delete(e.key.toLowerCase());
+    this.onBlur = () => {
+      this.keys.clear();
+      this.target = null;
+      this.flushPosition();
+    };
+    window.addEventListener("keydown", this.onKeyDown);
+    window.addEventListener("keyup", this.onKeyUp);
+    window.addEventListener("blur", this.onBlur);
+    this.events.once("shutdown", () => {
+      this.flushPosition();
+      window.removeEventListener("keydown", this.onKeyDown);
+      window.removeEventListener("keyup", this.onKeyUp);
+      window.removeEventListener("blur", this.onBlur);
+      this.entries.clear();
+    });
+    const reduced = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    if (!reduced) {
+      const glow = this.add.ellipse(439, 314, 38, 18, 0xf3b555, 0.06);
+      this.tweens.add({
+        targets: glow,
+        alpha: 0.17,
+        scale: 1.2,
+        duration: 1600,
+        yoyo: true,
+        repeat: -1,
+      });
+      for (let i = 0; i < 8; i++) {
+        const mote = this.add.rectangle(
+          180 + i * 72,
+          190 + ((i * 73) % 230),
+          2,
+          2,
+          0xc7c68f,
+          0.5,
+        );
+        this.tweens.add({
+          targets: mote,
+          y: mote.y - 12,
+          alpha: 0.1,
+          duration: 2500 + i * 220,
+          yoyo: true,
+          repeat: -1,
+        });
       }
     }
-
-    // Check proximity to other agents.
-    this.checkProximity(entry)
+    this.game.events.emit("camp-ready", this);
   }
-
-  checkProximity(activeEntry) {
-    let nearest = null
-    let nearestDist = Infinity
-
-    this.agentSprites.forEach((other, id) => {
-      if (id === this.activeAgentId) return
-      const dx = activeEntry.sprite.x - other.sprite.x
-      const dy = activeEntry.sprite.y - other.sprite.y
-      const dist = Math.sqrt(dx * dx + dy * dy)
-      if (dist < this.PROXIMITY_DISTANCE && dist < nearestDist) {
-        nearest = other.data
-        nearestDist = dist
+  sync(props) {
+    if (this.props?.activeAgentId !== props.activeAgentId) {
+      this.flushPosition();
+      this.target = null;
+      this.nearId = null;
+      this.props?.onProximity(null);
+      this.keys.clear();
+      this.marker.setVisible(false);
+    }
+    this.props = props;
+    if (props.paused) {
+      this.target = null;
+      this.keys.clear();
+      this.flushPosition();
+    }
+    const ids = new Set(props.agents.map((a) => a.id));
+    for (const [id, entry] of this.entries)
+      if (!ids.has(id)) {
+        entry.container.destroy();
+        this.entries.delete(id);
       }
-    })
-
-    // Only fire the callback when the nearest agent changes.
-    const nearId = nearest ? nearest.id : null
-    if (nearId !== this._lastNearAgent) {
-      this._lastNearAgent = nearId
-      if (this.onProximity) {
-        this.onProximity(nearest)
+    props.agents.forEach((agent) => {
+      let entry = this.entries.get(agent.id);
+      if (
+        entry &&
+        (entry.data.sprite_variant !== agent.sprite_variant ||
+          entry.data.name !== agent.name)
+      ) {
+        entry.container.destroy();
+        this.entries.delete(agent.id);
+        entry = null;
       }
+      if (!entry) {
+        const color = parseInt(
+          colors[(agent.sprite_variant || 0) % colors.length].slice(1),
+          16,
+        );
+        const g = this.add.graphics();
+        g.fillStyle(0x071b20, 0.45);
+        g.fillEllipse(0, 2, 22, 8);
+        g.fillStyle(0x172326);
+        g.fillRect(-6, -3, 5, 9);
+        g.fillRect(2, -3, 5, 9);
+        g.fillStyle(color);
+        g.fillRect(-8, -19, 16, 18);
+        g.fillRect(-10, -16, 3, 11);
+        g.fillRect(8, -16, 3, 11);
+        g.fillStyle(0x4b4335);
+        g.fillRect(-7, -18, 5, 13);
+        g.fillStyle(0xd0b498);
+        g.fillRect(-5, -29, 10, 10);
+        g.fillStyle(color);
+        g.fillRect(-6, -30, 12, 4);
+        g.fillRect(-8, -27, 16, 3);
+        const label = this.add
+          .text(0, -39, agent.name, {
+            fontFamily: "system-ui, sans-serif",
+            fontSize: "11px",
+            color: "#f2e8d6",
+            backgroundColor: "#10272ce6",
+            padding: { x: 5, y: 3 },
+          })
+          .setOrigin(0.5);
+        const container = this.add.container(
+          agent.position_x,
+          agent.position_y,
+          [g, label],
+        );
+        container
+          .setSize(40, 58)
+          .setInteractive()
+          .on("pointerdown", () => {
+            if (!this.props?.paused) this.props?.onInspect(agent);
+          });
+        entry = {
+          container,
+          x: agent.position_x,
+          y: agent.position_y,
+          data: agent,
+        };
+        this.entries.set(agent.id, entry);
+      }
+      entry.data = agent;
+      if (agent.id !== props.activeAgentId) {
+        entry.x = agent.position_x;
+        entry.y = agent.position_y;
+        entry.container.setPosition(entry.x, entry.y);
+      }
+    });
+  }
+  flushPosition() {
+    if (this.dirty && this.props?.activeAgentId) {
+      const entry = this.entries.get(this.props.activeAgentId);
+      if (entry)
+        this.props.onPositionChange(
+          entry.data.id,
+          Math.round(entry.x),
+          Math.round(entry.y),
+        );
+      this.dirty = false;
     }
   }
-
-  // Called from React when the user selects a different avatar.
-  setActiveAgent(agentId) {
-    this.activeAgentId = agentId
-    this._lastNearAgent = null
+  update(time, delta) {
+    const active = this.entries.get(this.props?.activeAgentId);
+    this.ring?.setVisible(!!active);
+    if (!active || this.props.paused) return;
+    let dx =
+      (this.keys.has("d") || this.keys.has("arrowright") ? 1 : 0) -
+      (this.keys.has("a") || this.keys.has("arrowleft") ? 1 : 0);
+    let dy =
+      (this.keys.has("s") || this.keys.has("arrowdown") ? 1 : 0) -
+      (this.keys.has("w") || this.keys.has("arrowup") ? 1 : 0);
+    if (!dx && !dy && this.target) {
+      dx = this.target.x - active.x;
+      dy = this.target.y - active.y;
+      if (Math.hypot(dx, dy) < 3) {
+        this.target = null;
+        dx = dy = 0;
+        this.marker.setVisible(false);
+      }
+    }
+    const distance = Math.hypot(dx, dy);
+    if (distance) {
+      const step = (95 * Math.min(delta, 50)) / 1000;
+      let x = Math.max(170, Math.min(710, active.x + (dx / distance) * step));
+      let y = Math.max(175, Math.min(490, active.y + (dy / distance) * step));
+      // Keep the fire ring clear; all available walking ground is in the clearing.
+      if (
+        Math.hypot(x - 439, y - 316) < 29 &&
+        Math.hypot(x - 439, y - 316) <=
+          Math.hypot(active.x - 439, active.y - 316)
+      ) {
+        this.target = null;
+        x = active.x;
+        y = active.y;
+        this.marker.setVisible(false);
+      }
+      active.x = x;
+      active.y = y;
+      active.container.setPosition(x, y);
+      this.dirty = true;
+      if (time - this.lastSave > 700) {
+        this.flushPosition();
+        this.lastSave = time;
+      }
+    } else this.flushPosition();
+    this.ring.setPosition(active.x, active.y + 5);
+    let nearest = null,
+      dist = 65;
+    for (const [id, e] of this.entries) {
+      const d = Math.hypot(e.x - active.x, e.y - active.y);
+      if (id !== active.data.id && d < dist) {
+        nearest = e.data;
+        dist = d;
+      }
+    }
+    if ((nearest?.id || null) !== this.nearId) {
+      this.nearId = nearest?.id || null;
+      this.props.onProximity(nearest);
+    }
   }
 }

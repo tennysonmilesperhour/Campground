@@ -35,3 +35,11 @@ Reasoning: Evokes the gathering metaphor, works at any scale (small camp, sprawl
 - How clothes render on sprites: layered sprite accessories vs. palette swaps vs. pre-baked variants.
 - Whether autonomous agents can run while the owner is offline (cost and complexity question).
 - Tag vocabulary governance: free-text, curated list, or hybrid.
+
+## 2026-09-07: Shared gathering rebuild
+
+Preserve React, Vite, Phaser, Supabase, and Vercel. Replace the disconnected prototype shell and non-atomic inventory writes with a shared world, public browsing, explicit publication, and recipient-initiated collection. Each collection creates an immutable-at-transfer snapshot in the recipient's pack; subsequent owner edits create that owner's own working version and never rewrite other people's copies. A private source is available only to its owner's agents.
+
+Use namespaced `camp_*` tables so deployment can coexist with other applications if the owner selects a shared backend. Keep privileged implementations in a private schema, grant no direct client writes, and enforce ownership, quotas, and input limits inside each function. Preserve the old schema as a historical reference and leave legacy rows untouched until they can be inspected.
+
+Use a dedicated local development checkout because the generated Documents workspace was offloading dependency files through the filesystem provider and blocking reads. Keep local test fixtures out of production. Production completion requires the paused backend to be restored or a different hosted project explicitly selected.

@@ -1,79 +1,48 @@
-import { useEffect, useRef } from 'react'
-import { Game, AUTO, Scale } from 'phaser'
-import CampgroundScene from './CampgroundScene'
-
-// React component that creates and manages the Phaser game instance.
-// Accepts agents, the active agent ID, and callbacks for position
-// changes and proximity events.
-
-export default function CampgroundCanvas({
-  agents,
-  activeAgentId,
-  onPositionChange,
-  onProximity,
-}) {
-  const gameContainer = useRef(null)
-  const gameInstance = useRef(null)
-
+import { useEffect, useRef } from "react";
+import { Game, AUTO, Scale } from "phaser";
+import CampgroundScene from "./CampgroundScene";
+export default function CampgroundCanvas(props) {
+  const host = useRef(null),
+    game = useRef(null),
+    latest = useRef(props);
   useEffect(() => {
-    if (gameInstance.current || !gameContainer.current) return
-
-    gameInstance.current = new Game({
+    latest.current = props;
+    const scene = game.current?.scene.getScene("CampgroundScene");
+    if (scene?.scene.isActive()) scene.sync(props);
+  }, [props]);
+  useEffect(() => {
+    const instance = new Game({
       type: AUTO,
-      parent: gameContainer.current,
-      width: 800,
+      parent: host.current,
+      width: 900,
       height: 600,
-      backgroundColor: '#1a2a2a',
+      backgroundColor: "#10272c",
+      pixelArt: true,
+      banner: false,
       scene: [CampgroundScene],
-      scale: {
-        mode: Scale.FIT,
-        autoCenter: Scale.CENTER_BOTH,
-      },
-    })
-
+      input: { keyboard: false },
+      scale: { mode: Scale.FIT, autoCenter: Scale.CENTER_BOTH },
+    });
+    game.current = instance;
+    instance.events.on("camp-ready", (scene) => {
+      instance.canvas.tabIndex = 0;
+      instance.canvas.setAttribute(
+        "aria-label",
+        "Campground movement. Use arrow keys or W A S D to walk your selected agent.",
+      );
+      scene.sync(latest.current);
+    });
     return () => {
-      if (gameInstance.current) {
-        gameInstance.current.destroy(true)
-        gameInstance.current = null
-      }
-    }
-  }, [])
-
-  // When agents change, restart the scene with the new data.
-  useEffect(() => {
-    if (!gameInstance.current) return
-
-    const scene = gameInstance.current.scene.getScene('CampgroundScene')
-    if (scene && scene.scene.isActive()) {
-      scene.scene.restart({ agents, activeAgentId })
-    }
-  }, [agents])
-
-  // When the active agent changes, tell the scene (without restarting).
-  useEffect(() => {
-    if (!gameInstance.current) return
-
-    const scene = gameInstance.current.scene.getScene('CampgroundScene')
-    if (scene && scene.setActiveAgent) {
-      scene.setActiveAgent(activeAgentId)
-    }
-  }, [activeAgentId])
-
-  // Keep the scene's callbacks in sync with React props.
-  useEffect(() => {
-    if (!gameInstance.current) return
-
-    const scene = gameInstance.current.scene.getScene('CampgroundScene')
-    if (scene) {
-      scene.onPositionChange = onPositionChange || null
-      scene.onProximity = onProximity || null
-    }
-  }, [onPositionChange, onProximity])
-
+      instance.destroy(true);
+      game.current = null;
+    };
+  }, []);
   return (
     <div
-      ref={gameContainer}
-      className="w-full max-w-[800px] aspect-[4/3] mx-auto"
+      className="canvas-container"
+      ref={host}
+      role="img"
+      aria-label="Interactive pixel-art forest campground. Select your agent and click or tap the clearing to walk. Every agent is also available in the Around the fire list."
     />
-  )
+  );
 }
